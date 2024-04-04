@@ -46,8 +46,10 @@ export function useOneTopologyExecDetails() {
             return { isOneTopologyError, oneTopologyErrorComponent }
         }
 
-        if (oneTopologyExecDetails && "is_darwin" in oneTopologyExecDetails && oneTopologyExecDetails["is_darwin"] === true) {
-            if (oneTopologyExecDetails && "is_one_topology_runnable" in oneTopologyExecDetails && oneTopologyExecDetails['is_one_topology_runnable'] === true) {
+        const { is_darwin, is_one_topology_executable, is_one_topology_runnable, absolute_one_topology_exec_path_local } = oneTopologyExecDetails
+
+        if (is_darwin) {
+            if (is_one_topology_runnable) {
                 // pass
             } else {
                 isOneTopologyError = true
@@ -64,7 +66,7 @@ export function useOneTopologyExecDetails() {
                             }}
                         >
                             <Typography component="pre" display="block" style={{ wordWrap: "break-word" }}>
-                                {oneTopologyExecDetails["absolute_one_topology_exec_path_local"]}
+                                {absolute_one_topology_exec_path_local}
                             </Typography>
                         </Box>
 
@@ -80,6 +82,24 @@ export function useOneTopologyExecDetails() {
                     </React.Fragment >
                 )
             }
+        } else if (is_one_topology_executable) {
+            // pass
+        } else {
+            isOneTopologyError = true
+            oneTopologyErrorComponent.push(
+                <React.Fragment>
+                    <Typography sx={{ mt: 6 }} variant="h5" color="error.main" align='center'>
+                        One-Topology installed locally but not executable
+                    </Typography>
+
+                    {absolute_one_topology_exec_path_local ? (
+                        <Typography sx={{ my: 6 }} variant="h5" color="error.main" align='center'>
+                            Please run this command: <br /> {"chmod +x " + absolute_one_topology_exec_path_local}
+                        </Typography>
+                    ) : null}
+
+                </React.Fragment >
+            )
         }
 
         return { isOneTopologyError, oneTopologyErrorComponent }

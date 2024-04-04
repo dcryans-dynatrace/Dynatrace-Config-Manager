@@ -223,7 +223,7 @@ def get_os_env_terraform():
     my_env = os.environ.copy()
 
     tf_exec_details = terraform_cli_cmd.get_terraform_executable_details()
-    if tf_exec_details["is_terraform_installed_locally"] == True:
+    if tf_exec_details["is_terraform_executable_locally"] == True:
         pass
     else:
         return my_env

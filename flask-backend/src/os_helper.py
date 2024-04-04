@@ -13,6 +13,7 @@
 #  limitations under the License.
 
 import platform
+import os
 
 OS = platform.system().lower()
 
@@ -28,3 +29,7 @@ ARCHITECTURE = "amd64"
 
 if platform.processor().lower() == "arm":
     ARCHITECTURE = "arm64"
+
+
+def is_executable(path):
+    return os.path.exists(path) and os.access(path, os.X_OK) and not os.path.isdir(path)

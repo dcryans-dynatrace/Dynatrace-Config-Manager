@@ -47,10 +47,33 @@ export function useTerraformExecDetails() {
             return { isTerraformError, terraformErrorComponent, terraformInfo }
         }
 
+        const {
+            is_terraform_installed_locally, is_terraform_executable_locally,
+            is_terraform_installed, is_terraform_executable,
+            absolute_terraform_exec_path_local, local_terraform_path,
+            is_darwin, is_terraform_provider_executable, is_terraform_provider_runnable,
+            absolute_terraform_provider_exec_path_local
+        } = terraformExecDetails
 
-        if (terraformExecDetails && "is_terraform_installed_locally" in terraformExecDetails && terraformExecDetails['is_terraform_installed_locally'] === true) {
+        if (is_terraform_installed_locally && is_terraform_executable_locally) {
             terraformInfo = "* Using locally installed terraform executable"
-        } else if (terraformExecDetails && "is_terraform_installed" in terraformExecDetails && terraformExecDetails['is_terraform_installed'] === true) {
+        } else if (is_terraform_installed_locally) {
+            isTerraformError = true
+            terraformErrorComponent.push(
+                <React.Fragment>
+                    <Typography sx={{ mt: 6 }} variant="h5" color="error.main" align='center'>
+                        Terraform installed locally but not executable
+                    </Typography>
+
+                    {absolute_terraform_exec_path_local ? (
+                        <Typography sx={{ my: 6 }} variant="h5" color="error.main" align='center'>
+                            Please run this command:
+                            <br /> {"chmod +x " + absolute_terraform_exec_path_local}
+                        </Typography>
+                    ) : null}
+                </React.Fragment >
+            )
+        } else if (is_terraform_installed && is_terraform_executable) {
             // pass
         } else {
             isTerraformError = true
@@ -63,20 +86,28 @@ export function useTerraformExecDetails() {
                         </Button>
                     </Box >
                     <Typography sx={{ mt: 6 }} variant="h5" color="error.main" align='center'>Please download the terraform executable and add it to your PATH environment variable.  <br /> (requires restarting the app with updated PATH)</Typography>
-                    {"local_terraform_path" in terraformExecDetails ? <Typography sx={{ my: 6 }} variant="h5" color="error.main" align='center'>Alternative: Copy the terraform executable locally to this directory: <br /> {terraformExecDetails["local_terraform_path"]}</Typography>
-                        : null}
+
+                    {local_terraform_path ? (
+                        <Typography sx={{ my: 6 }} variant="h5" color="error.main" align='center'>
+                            Alternative: Copy the terraform executable locally to this directory:
+                            <br /> {local_terraform_path}
+                        </Typography>
+                    ) : null}
+
                 </React.Fragment >
             )
         }
 
-        if (terraformExecDetails && "is_darwin" in terraformExecDetails && terraformExecDetails["is_darwin"] === true) {
-            if (terraformExecDetails && "is_terraform_provider_runnable" in terraformExecDetails && terraformExecDetails['is_terraform_provider_runnable'] === true) {
+        if (is_darwin) {
+            if (is_terraform_provider_runnable) {
                 // pass
             } else {
                 isTerraformError = true
                 terraformErrorComponent.push(
                     <React.Fragment>
-                        <Typography sx={{ mt: 6 }} variant="h5" color="error.main" align='center'>Terraform Provider needs to be allowed.</Typography>
+                        <Typography sx={{ mt: 6 }} variant="h5" color="error.main" align='center'>
+                            Terraform Provider needs to be allowed.
+                        </Typography>
                         <Typography sx={{ mt: 6 }} variant="h5" color="error.main">
                             Open a Terminal and run this command:
                         </Typography>
@@ -87,7 +118,7 @@ export function useTerraformExecDetails() {
                             }}
                         >
                             <Typography component="pre" display="block" style={{ wordWrap: "break-word" }}>
-                                {terraformExecDetails["absolute_terraform_provider_exec_path_local"]}
+                                {absolute_terraform_provider_exec_path_local}
                             </Typography>
                         </Box>
 
@@ -103,6 +134,25 @@ export function useTerraformExecDetails() {
                     </React.Fragment >
                 )
             }
+        } else if (is_terraform_provider_executable) {
+            // pass
+        } else {
+            isTerraformError = true
+            terraformErrorComponent.push(
+                <React.Fragment>
+                    <Typography sx={{ mt: 6 }} variant="h5" color="error.main" align='center'>
+                        Terraform Provider not executable
+                    </Typography>
+
+                    {absolute_terraform_provider_exec_path_local ? (
+                        <Typography sx={{ my: 6 }} variant="h5" color="error.main" align='center'>
+                            Please run this command:
+                            <br /> {"chmod +x " + absolute_terraform_provider_exec_path_local}
+                        </Typography>
+                    ) : null}
+
+                </React.Fragment >
+            )
         }
 
         return { isTerraformError, terraformErrorComponent, terraformInfo }
