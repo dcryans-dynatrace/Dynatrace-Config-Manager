@@ -272,6 +272,6 @@ func (c *DummyClient) ListEntitiesTypes() ([]EntitiesType, *EntitiesList, error)
 	return make([]EntitiesType, 0), nil, nil
 }
 
-func (c *DummyClient) ListEntities(_ EntitiesType, _ int, _ int) (EntitiesList, error) {
+func (c *DummyClient) ListEntities(_ EntitiesType, _ ListEntitiesOptions) (EntitiesList, error) {
 	return EntitiesList{}, nil
 }

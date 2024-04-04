@@ -33,8 +33,7 @@ import (
 type entitiesDownloadCommandOptions struct {
 	downloadCommandOptionsShared
 	specificEntitiesTypes []string
-	timeFromMinutes       int
-	timeToMinutes         int
+	listEntitiesOptions
 }
 
 type entitiesManifestDownloadOptions struct {
@@ -51,8 +50,13 @@ type entitiesDirectDownloadOptions struct {
 type downloadEntitiesOptions struct {
 	downloadOptionsShared
 	specificEntitiesTypes []string
-	timeFromMinutes       int
-	timeToMinutes         int
+	listEntitiesOptions
+}
+
+type listEntitiesOptions struct {
+	timeFromMinutes int
+	timeToMinutes   int
+	entityPageSize  int
 }
 
 func (d DefaultCommand) DownloadEntitiesBasedOnManifest(fs afero.Fs, cmdOptions entitiesManifestDownloadOptions) error {
@@ -78,8 +82,11 @@ func (d DefaultCommand) DownloadEntitiesBasedOnManifest(fs afero.Fs, cmdOptions 
 			concurrentDownloadLimit: concurrentDownloadLimit,
 		},
 		specificEntitiesTypes: cmdOptions.specificEntitiesTypes,
-		timeFromMinutes:       cmdOptions.timeFromMinutes,
-		timeToMinutes:         cmdOptions.timeToMinutes,
+		listEntitiesOptions: listEntitiesOptions{
+			timeFromMinutes: cmdOptions.timeFromMinutes,
+			timeToMinutes:   cmdOptions.timeToMinutes,
+			entityPageSize:  cmdOptions.entityPageSize,
+		},
 	}
 
 	dtClient, err := cmdutils.CreateDTClient(env, false)
@@ -113,8 +120,11 @@ func (d DefaultCommand) DownloadEntities(fs afero.Fs, cmdOptions entitiesDirectD
 			concurrentDownloadLimit: concurrentDownloadLimit,
 		},
 		specificEntitiesTypes: cmdOptions.specificEntitiesTypes,
-		timeFromMinutes:       cmdOptions.timeFromMinutes,
-		timeToMinutes:         cmdOptions.timeToMinutes,
+		listEntitiesOptions: listEntitiesOptions{
+			timeFromMinutes: cmdOptions.timeFromMinutes,
+			timeToMinutes:   cmdOptions.timeToMinutes,
+			entityPageSize:  cmdOptions.entityPageSize,
+		},
 	}
 
 	dtClient, err := client.NewClassicClient(cmdOptions.environmentUrl, token)
@@ -133,6 +143,7 @@ func doDownloadEntities(fs afero.Fs, dtClient client.Client, opts downloadEntiti
 
 	log.Info("Downloading from environment '%v' into project '%v'", opts.environmentUrl, opts.projectName)
 	log.Info("Time from minutes: %v, Time to minutes: %v", opts.timeFromMinutes, opts.timeToMinutes)
+	log.Info("Entity page Size: %v", opts.entityPageSize)
 
 	downloadedConfigs := downloadEntities(dtClient, opts)
 
@@ -144,12 +155,18 @@ func downloadEntities(dtClient client.Client, opts downloadEntitiesOptions) proj
 
 	var entitiesObjects project.ConfigsPerType
 
+	listEntitiesOptions := client.ListEntitiesOptions{
+		TimeFromMinutes: opts.timeFromMinutes,
+		TimeToMinutes:   opts.timeToMinutes,
+		EntityPageSize:  opts.entityPageSize,
+	}
+
 	// download specific entity types only
 	if len(opts.specificEntitiesTypes) > 0 {
 		log.Debug("Entity Types to download: \n - %v", strings.Join(opts.specificEntitiesTypes, "\n - "))
-		entitiesObjects = entities.Download(dtClient, opts.specificEntitiesTypes, opts.timeFromMinutes, opts.timeToMinutes, opts.projectName)
+		entitiesObjects = entities.Download(dtClient, opts.specificEntitiesTypes, listEntitiesOptions, opts.projectName)
 	} else {
-		entitiesObjects = entities.DownloadAll(dtClient, opts.timeFromMinutes, opts.timeToMinutes, opts.downloadOptionsShared.projectName)
+		entitiesObjects = entities.DownloadAll(dtClient, listEntitiesOptions, opts.downloadOptionsShared.projectName)
 	}
 
 	if numEntities := sumConfigs(entitiesObjects); numEntities > 0 {

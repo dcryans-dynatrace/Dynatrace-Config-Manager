@@ -132,17 +132,28 @@ def extract_config(tenant_key, tenant_data, headers):
         "Referer": "url",
     }
 
-    if (
-        "monacoConcurrentRequests" in tenant_data
-        and type(tenant_data["monacoConcurrentRequests"]) == type(0)
-        and tenant_data["monacoConcurrentRequests"] > 0
-    ):
-        config["monaco_concurrent_requests"] = tenant_data["monacoConcurrentRequests"]
+    monaco_concurrent_requests = None
+    try:
+        monaco_concurrent_requests = int(tenant_data["monacoConcurrentRequests"])
+    except (ValueError, KeyError):
+        pass
+
+    if type(monaco_concurrent_requests) == type(0) and monaco_concurrent_requests > 0:
+        config["monaco_concurrent_requests"] = monaco_concurrent_requests
     else:
         config["monaco_concurrent_requests"] = 10
 
-    # Not using this feature currently, would have to adapt with OneTopology/Terraform 
-    '''
+    entity_page_size = None
+    try:
+        entity_page_size = int(tenant_data["entityPageSize"])
+    except (ValueError, KeyError):
+        pass
+
+    if type(entity_page_size) == type(0) and entity_page_size > 0:
+        config["entity_page_size"] = tenant_data["entityPageSize"]
+
+    # Not using this feature currently, would have to adapt with OneTopology/Terraform
+    """
     if (
         "disableSSLVerification" in tenant_data
         and tenant_data["disableSSLVerification"] == True
@@ -150,7 +161,7 @@ def extract_config(tenant_key, tenant_data, headers):
         config["verifySSL"] = False
     else:
         config["verifySSL"] = True
-    '''
+    """
     config["verifySSL"] = None
 
     set_tenant_proxy(tenant_data, config)
@@ -160,6 +171,7 @@ def extract_config(tenant_key, tenant_data, headers):
             headers[key] = tenant_data[config_key]
 
     return config, headers
+
 
 def set_tenant_proxy(tenant_data, config):
     if (

@@ -16,6 +16,7 @@ package client
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/url"
 	"reflect"
 	"regexp"
@@ -165,13 +166,18 @@ func IsInvalidReflectionValue(value reflect.Value) bool {
 	}
 }
 
-func genListEntitiesParams(entityType string, entitiesType EntitiesType, timeFromMinutes int, timeToMinutes int, ignoreProperties []string) (url.Values, string, string) {
-	from := genTimeframeUnixMilliString(-1 * time.Duration(timeFromMinutes) * time.Minute)
-	to := genTimeframeUnixMilliString(-1 * time.Duration(timeToMinutes) * time.Minute)
+func genListEntitiesParams(entityType string, entitiesType EntitiesType, opts ListEntitiesOptions, ignoreProperties []string) (url.Values, string, string) {
+	from := genTimeframeUnixMilliString(-1 * time.Duration(opts.TimeFromMinutes) * time.Minute)
+	to := genTimeframeUnixMilliString(-1 * time.Duration(opts.TimeToMinutes) * time.Minute)
+
+	pageSize := DefaultPageSizeEntities
+	if opts.EntityPageSize > 0 {
+		pageSize = fmt.Sprintf("%d", opts.EntityPageSize)
+	}
 
 	params := url.Values{
 		"entitySelector": []string{"type(\"" + entityType + "\")"},
-		"pageSize":       []string{defaultPageSizeEntities},
+		"pageSize":       []string{pageSize},
 		"fields":         []string{getEntitiesTypeFields(entitiesType, ignoreProperties)},
 		"from":           []string{from},
 		"to":             []string{to},
