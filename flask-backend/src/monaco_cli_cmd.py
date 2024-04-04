@@ -21,23 +21,26 @@ import os_helper
 
 
 def run_one_topology_validation_checks():
-    if(os_helper.IS_DARWIN):
-        pass
-    else:
-        return {}
-    
     run_info = {}
-    run_blank(run_info)
+
+    absolute_one_topology_exec_path_local = dirs.forward_slash_join(
+        os.path.abspath(dirs.get_monaco_exec_dir()), monaco_cli.MONACO_EXEC
+    )
+
+    is_one_topology_executable = os_helper.is_executable(absolute_one_topology_exec_path_local)
+
     is_one_topology_runnable = True
-    if "return_status" in run_info and run_info["return_status"] >= 300:
-        is_one_topology_runnable = False
+
+    if os_helper.IS_DARWIN:
+        run_blank(run_info)
+        if "return_status" in run_info and run_info["return_status"] >= 300:
+            is_one_topology_runnable = False
 
     return {
         "is_darwin": os_helper.IS_DARWIN,
         "is_one_topology_runnable": is_one_topology_runnable,
-        "absolute_one_topology_exec_path_local": dirs.forward_slash_join(
-            os.path.abspath(dirs.get_monaco_exec_dir()), monaco_cli.MONACO_EXEC
-        ),
+        "is_one_topology_executable": is_one_topology_executable,
+        "absolute_one_topology_exec_path_local": absolute_one_topology_exec_path_local,
     }
 
 

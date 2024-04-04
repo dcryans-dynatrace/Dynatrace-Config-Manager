@@ -145,7 +145,7 @@ def generate_cmd_list(
 
     terraform_exec = TERRAFORM_EXEC
     tf_exec_details = get_terraform_executable_details()
-    if tf_exec_details["is_terraform_installed_locally"] == True:
+    if tf_exec_details["is_terraform_executable_locally"] == True:
         terraform_exec = tf_exec_details["absolute_terraform_exec_path_local"]
 
     cmd_list = [
@@ -222,39 +222,59 @@ def write_refresh_cmd(terraform_path, set_env_filename):
         dirs.get_file_path(terraform_path, "refresh", ".cmd"), lines
     )
 
+
 def run_terraform_validation_checks():
     provider_checks = {}
-    if(os_helper.IS_DARWIN):
-        provider_checks = get_terraform_provider_details()
+    provider_checks = get_terraform_provider_details()
     terraform_checks = get_terraform_executable_details()
 
     return {**terraform_checks, **provider_checks}
 
+
 def get_terraform_provider_details():
     run_info = {}
-    terraform_cli.run_blank(run_info)
+
+    absolute_terraform_provider_exec_path_local = (
+        get_absolute_terraform_provider_exec_path_local()
+    )
+    is_terraform_provider_executable = os_helper.is_executable(
+        absolute_terraform_provider_exec_path_local
+    )
+
     is_terraform_provider_runnable = True
-    if "return_status" in run_info and run_info["return_status"] >= 300:
-        is_terraform_provider_runnable = False
+    if os_helper.IS_DARWIN:
+        terraform_cli.run_blank(run_info)
+        if "return_status" in run_info and run_info["return_status"] >= 300:
+            is_terraform_provider_runnable = False
 
     return {
         "is_darwin": os_helper.IS_DARWIN,
+        "is_terraform_provider_executable": is_terraform_provider_executable,
         "is_terraform_provider_runnable": is_terraform_provider_runnable,
-        "absolute_terraform_provider_exec_path_local": get_absolute_terraform_provider_exec_path_local(),
+        "absolute_terraform_provider_exec_path_local": absolute_terraform_provider_exec_path_local,
     }
+
 
 def get_terraform_executable_details():
     is_terraform_installed = shutil.which(terraform_cli_cmd.TERRAFORM_EXEC) is not None
+    is_terraform_executable = (
+        shutil.which(terraform_cli_cmd.TERRAFORM_EXEC, mode=os.X_OK) is not None
+    )
 
     terraform_dir = get_absolute_terraform_dir_local()
 
     absolute_terraform_exec_path_local = get_absolute_terraform_exec_path_local()
 
     is_terraform_locally_installed = os.path.exists(absolute_terraform_exec_path_local)
+    is_terraform_executable_locally = os_helper.is_executable(
+        absolute_terraform_exec_path_local
+    )
 
     return {
         "is_terraform_installed": is_terraform_installed,
+        "is_terraform_executable": is_terraform_executable,
         "is_terraform_installed_locally": is_terraform_locally_installed,
+        "is_terraform_executable_locally": is_terraform_executable_locally,
         "local_terraform_path": terraform_dir,
         "absolute_terraform_exec_path_local": absolute_terraform_exec_path_local,
     }
@@ -278,8 +298,20 @@ def get_absolute_terraform_dir_local():
     return terraform_dir
 
 
+def get_absolute_terraform_provider_dir_local():
+    if os_helper.IS_DARWIN:
+        return get_absolute_terraform_dir_local()
+
+    return dirs.to_forward_slash(
+        dirs.to_forward_slash(
+            os.path.abspath(terraform_cli.get_path_terraform_provider())
+        )
+    )
+
+
 def get_absolute_terraform_provider_exec_path_local():
-    terraform_dir = get_absolute_terraform_dir_local()
+
+    terraform_dir = get_absolute_terraform_provider_dir_local()
 
     executable = terraform_cli.PROVIDER_EXE
     if os_helper.IS_WINDOWS:
