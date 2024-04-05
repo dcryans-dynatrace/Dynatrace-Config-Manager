@@ -17,7 +17,8 @@
     "ansi-to-react": "^6.1.6",
     "caniuse-lite": "^1.0.30001597",
     "dayjs": "^1.11.5",
-    "follow-redirects": "^1.15.4",
+    "express": "^4.19.2",
+    "follow-redirects": "^1.15.6",
     "lodash": "^4.17.21",
     "moment": "^2.29.4",
     "react": "^18.1.0",
@@ -25,8 +26,8 @@
     "react-horizontal-stacked-bar-chart": "^8.15.2",
     "react-json-view": "^1.21.3",
     "react-json-view-compare": "^2.0.1",
-    "react-scripts": "^5.0.1",
-    "web-vitals": "^2.1.4"
+    "web-vitals": "^2.1.4",
+    "webpack-dev-middleware": "^5.3.4"
   },
   "overrides": {
     "react-json-view": {
@@ -67,6 +68,7 @@
   },
   "devDependencies": {
     "cross-env": "^7.0.3",
-    "env-cmd": "^10.1.0"
+    "env-cmd": "^10.1.0",
+    "react-scripts": "^5.0.1"
   }
 }
