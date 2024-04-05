@@ -36,7 +36,7 @@ def get_path_finished_file(type_path):
 def gen_monaco_env(config, tenant_data, log_path=None):
     my_env = os.environ.copy()
     my_env[TOKEN_NAME] = tenant_data["APIKey"]
-    my_env["CONCURRENT_REQUESTS"] = str(config["monaco_concurrent_requests"])
+    my_env["MONACO_CONCURRENT_REQUESTS"] = str(config["monaco_concurrent_requests"])
     my_env["MONACO_FEAT_ENTITIES"] = "1"
     proxy.apply_proxy_to_env_dict(my_env, config)
 

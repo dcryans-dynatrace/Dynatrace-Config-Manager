@@ -100,7 +100,9 @@ const defaultListSettingsFields = "objectId,value,externalId,schemaVersion,schem
 // actual value payload
 const reducedListSettingsFields = "objectId,externalId,schemaVersion,schemaId,scope"
 const defaultPageSize = "500"
-const defaultPageSizeEntities = "4000"
+const DefaultPageSizeEntitiesInt = 4000
+
+var DefaultPageSizeEntities = fmt.Sprintf("%d", DefaultPageSizeEntitiesInt)
 
 const TypesAsEntitiesType = "TypesAsEntityList"
 
@@ -133,13 +135,22 @@ type ListSettingsFilter func(DownloadSettingsObject) bool
 // More documentation is written in each method's documentation.
 //
 // [entities api]: https://www.dynatrace.com/support/help/dynatrace-api/environment-api/entity-v2
+// ListSettingsOptions are additional options for the ListSettings method
+// of the Settings client
+
+type ListEntitiesOptions struct {
+	TimeFromMinutes int
+	TimeToMinutes   int
+	EntityPageSize  int
+}
+
 type EntitiesClient interface {
 
 	// ListEntitiesTypes returns all entities types
 	ListEntitiesTypes() ([]EntitiesType, *EntitiesList, error)
 
 	// ListEntities returns all entities objects for a given type.
-	ListEntities(EntitiesType, int, int) (EntitiesList, error)
+	ListEntities(EntitiesType, ListEntitiesOptions) (EntitiesList, error)
 }
 
 //go:generate mockgen -source=client.go -destination=client_mock.go -package=client DynatraceClient
@@ -611,7 +622,7 @@ func genTimeframeUnixMilliString(duration time.Duration) string {
 	return strconv.FormatInt(time.Now().Add(duration).UnixMilli(), 10)
 }
 
-func (d *DynatraceClient) ListEntities(entitiesType EntitiesType, timeFromMinutes int, timeToMinutes int) (EntitiesList, error) {
+func (d *DynatraceClient) ListEntities(entitiesType EntitiesType, opts ListEntitiesOptions) (EntitiesList, error) {
 
 	entityType := entitiesType.EntitiesTypeId
 	log.Debug("Downloading all entities for entities Type %s", entityType)
@@ -644,7 +655,7 @@ func (d *DynatraceClient) ListEntities(entitiesType EntitiesType, timeFromMinute
 	var ignoreProperties []string
 
 	for runExtraction {
-		params, from, to := genListEntitiesParams(entityType, entitiesType, timeFromMinutes, timeToMinutes, ignoreProperties)
+		params, from, to := genListEntitiesParams(entityType, entitiesType, opts, ignoreProperties)
 		entityList.From = from
 		entityList.To = to
 		resp, err := d.listPaginated(pathEntitiesObjects, params, entityType, addToResult)

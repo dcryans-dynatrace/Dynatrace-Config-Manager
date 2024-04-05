@@ -23,7 +23,7 @@ export const TenantListContextState = React.createContext();
 export const TenantListContextDispatch = React.createContext();
 
 function getDefaultTenant() {
-    const tenant = { label: "", headers: "", APIKey: "", url: "", connectionTested: undefined, clientID: "", accountID: "", clientSecret: "", monacoConcurrentRequests: 10, disableSSLVerification: false, disableSystemProxies: false, proxyURL: "", notes: "" }
+    const tenant = { label: "", headers: "", APIKey: "", url: "", connectionTested: undefined, clientID: "", accountID: "", clientSecret: "", monacoConcurrentRequests: 10, entityPageSize: 0, disableSSLVerification: false, disableSystemProxies: false, proxyURL: "", notes: "" }
     return { ...tenant }
 }
 
@@ -106,7 +106,7 @@ function reducer(state, action) {
 function initState() {
     let tenant = getDefaultTenant()
     tenant.label = ""
-    return { "tenantKey": { [TENANT_KEY_TYPE_MAIN]: "0", [TENANT_KEY_TYPE_TARGET]: "1" }, "tenants": { 0: tenant , 1: tenant} }
+    return { "tenantKey": { [TENANT_KEY_TYPE_MAIN]: "0", [TENANT_KEY_TYPE_TARGET]: "1" }, "tenants": { 0: tenant, 1: tenant } }
 }
 
 export function useTenantListContextReducer() {
@@ -241,6 +241,10 @@ export function useTenant(key) {
             setTenantProperty("monacoConcurrentRequests", value)
         }
 
+        const setTenantEntityPageSize = (value) => {
+            setTenantProperty("entityPageSize", value)
+        }
+
         const setTenantDisableSSLVerification = (value) => {
             needToTestConnection()
             setTenantProperty("disableSSLVerification", value)
@@ -260,7 +264,12 @@ export function useTenant(key) {
             setTenantProperty("notes", value)
         }
 
-        return { tenant, setTenantLabel, setTenantUrl, setConnectionTested, setTenantHeaders, setTenantAPIKey, setTenantClientID, setTenantAccountID, setTenantClientSecret, setTenantMonacoConcurrentRequests, setTenantDisableSSLVerification, setTenantDisableSystemProxies, setTenantProxyURL, setTenantNotes }
+        return {
+            tenant, setTenantLabel, setTenantUrl, setConnectionTested, setTenantHeaders, setTenantAPIKey,
+            setTenantClientID, setTenantAccountID, setTenantClientSecret, setTenantMonacoConcurrentRequests,
+            setTenantEntityPageSize, setTenantDisableSSLVerification, setTenantDisableSystemProxies,
+            setTenantProxyURL, setTenantNotes
+        }
     }
     return {}
 }

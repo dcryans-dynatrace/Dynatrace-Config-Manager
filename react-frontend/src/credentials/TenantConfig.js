@@ -22,6 +22,7 @@ import TenantConfigBasics from "./TenantConfigBasics";
 import TenantConfigConnectionOptions from "./TenantConfigConnectionOptions";
 
 export const DEFAULT_MONACO_CONCURRENT_REQUESTS = 10
+export const DEFAULT_ENTITY_PAGE_SIZE = ""
 
 export default function TenantConfig({ tenantKeyType = TENANT_KEY_TYPE_MAIN }) {
     const { tenantKey } = useTenantKey(tenantKeyType)
@@ -29,6 +30,7 @@ export default function TenantConfig({ tenantKeyType = TENANT_KEY_TYPE_MAIN }) {
         tenant, setTenantHeaders,
         setTenantClientID, setTenantAccountID, setTenantClientSecret,
         setTenantMonacoConcurrentRequests,
+        setTenantEntityPageSize,
         setTenantNotes
     } = useTenant(tenantKey)
 
@@ -40,7 +42,6 @@ export default function TenantConfig({ tenantKeyType = TENANT_KEY_TYPE_MAIN }) {
             return tenant.monacoConcurrentRequests
         }
     }, [tenant.monacoConcurrentRequests])
-
 
     /*
     const pasteHeaders = () => {
@@ -125,6 +126,14 @@ export default function TenantConfig({ tenantKeyType = TENANT_KEY_TYPE_MAIN }) {
         setTenantMonacoConcurrentRequests(event.target.value)
     }
 
+    const handleChangeEntityPageSize = (event) => {
+        let newValue = event.target.value
+        if (newValue && Number(newValue) === 0 && newValue.length > 0) {
+            newValue = DEFAULT_ENTITY_PAGE_SIZE
+        }
+        setTenantEntityPageSize(newValue)
+    }
+
     const handleChangeNotes = (event) => {
         setTenantNotes(event.target.value)
     }
@@ -147,6 +156,23 @@ export default function TenantConfig({ tenantKeyType = TENANT_KEY_TYPE_MAIN }) {
                                 label="Number of Concurrent Requests for extraction cli calls to tenant" value={tenantMonacoConcurrentRequests}
                                 onChange={handleChangeMonacoConcurrentRequests} />
                         </FormControl>
+                    </React.Fragment>
+                    <React.Fragment>
+                        <FormControl fullWidth>
+                            <TextField id={"tenant-entityPageSize-field" + tenantKey}
+                                type="number"
+                                variant="standard"
+                                InputLabelProps={{
+                                    shrink: true,
+                                }}
+                                label="Entity Download Page Size: Leave Blank unless your limit has been increased by a Support Ticket" value={tenant.entityPageSize}
+                                onChange={handleChangeEntityPageSize} />
+                        </FormControl>
+                        {tenant.entityPageSize && tenant.entityPageSize !== "" ? (
+                            <Typography sx={{ mb: 2 }} variant="h8" color="warning.main" align='center'>
+                                Page Size field should be left blank unless Support changed the page size for you.
+                            </Typography>
+                        ) : null}
                     </React.Fragment>
                     <React.Fragment>
                         <FormControl fullWidth>

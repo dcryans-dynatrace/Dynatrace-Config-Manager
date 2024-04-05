@@ -46,6 +46,8 @@ def get_path_test_connection_logs(config):
 
 
 def extract_entities(run_info, tenant_key):
+    config = credentials.get_api_call_credentials(tenant_key)
+
     options_prefix = ["download", "entities"]
     options_suffix = []
     if run_info["time_from_minutes"] != None:
@@ -54,12 +56,17 @@ def extract_entities(run_info, tenant_key):
     if run_info["time_to_minutes"] != None:
         options_suffix.append("--time-to-minutes")
         options_suffix.append(run_info["time_to_minutes"])
+    if "entity_page_size" in config and config["entity_page_size"] != None:
+        options_suffix.append("--entity-page-size")
+        options_suffix.append(config["entity_page_size"])
 
     def add_to_finished(finished):
         if run_info["time_from_minutes"] != None:
             finished["time_from_minutes"] = run_info["time_from_minutes"]
         if run_info["time_to_minutes"] != None:
             finished["time_to_minutes"] = run_info["time_to_minutes"]
+        if "entity_page_size" in config and config["entity_page_size"] != None:
+            finished["entity_page_size"] = config["entity_page_size"]
 
         return finished
 

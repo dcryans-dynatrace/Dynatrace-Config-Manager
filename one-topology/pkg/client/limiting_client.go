@@ -80,9 +80,9 @@ func (l limitingClient) ListEntitiesTypes() (e []EntitiesType, list *EntitiesLis
 	return
 }
 
-func (l limitingClient) ListEntities(entitiesType EntitiesType, timeFromMinutes int, timeToMinutes int) (o EntitiesList, err error) {
+func (l limitingClient) ListEntities(entitiesType EntitiesType, opts ListEntitiesOptions) (o EntitiesList, err error) {
 	l.limiter.ExecuteBlocking(func() {
-		o, err = l.client.ListEntities(entitiesType, timeFromMinutes, timeToMinutes)
+		o, err = l.client.ListEntities(entitiesType, opts)
 	})
 
 	return
