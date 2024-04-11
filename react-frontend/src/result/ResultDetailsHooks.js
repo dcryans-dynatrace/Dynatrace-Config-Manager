@@ -20,6 +20,7 @@ import TerraformButton from '../terraform/TerraformButton';
 import { ALL } from './ResultDrawerDetailsAll';
 import { getTimestampActionId } from '../date/DateFormatter';
 import StatsBar from './StatsBar';
+import { ACTION_DESTROY } from '../extraction/ExtractedTable';
 
 
 export const planActionLabel = "Terraform Plan"
@@ -123,10 +124,7 @@ export function useGenTerraformActionComponent(actionCompleted, handleTerraformC
             actionId = lastActionId
         }
 
-        const { actionDetails, isApplyDone, isPlanDone, previousPlanTerraformParams } = genActionDetails(actionId, actionCompleted, terraformParams)
-        const planButton = genPlanButton(nbUpdate, handleTerraformCallComplete, terraformParams, lastActionsInfo, lastActionId, setActionId, module, setLastActionsInfo, planAPI);
-        const applyButton = genApplyButton(actionId, handleTerraformCallComplete, terraformParams, isApplyDone, isPlanDone, lastActionId, applyAPI, previousPlanTerraformParams);
-        const [planFocusProps, applyFocusProps] = genFocusProps(isApplyDone, isPlanDone)
+        const { actionDetails, isApplyDone, isPlanDone, previousPlanTerraformParams, destroyCount } = genActionDetails(actionId, actionCompleted, terraformParams)
 
         let actionDetailsLabel = "TerraComposer - Push selected configurations"
         let actionDetailsVariant = "h6"
@@ -136,6 +134,11 @@ export function useGenTerraformActionComponent(actionCompleted, handleTerraformC
             actionDetailsVariant = "h5"
             allLabel = "ALL"
         }
+
+        const planButton = genPlanButton(nbUpdate, handleTerraformCallComplete, terraformParams, lastActionsInfo, lastActionId, setActionId, module, setLastActionsInfo, planAPI);
+        const applyButton = genApplyButton(actionId, handleTerraformCallComplete, terraformParams, isApplyDone, isPlanDone, lastActionId, applyAPI, previousPlanTerraformParams, destroyCount);
+        const [planFocusProps, applyFocusProps] = genFocusProps(isApplyDone, isPlanDone)
+
 
         return (
             <React.Fragment>
@@ -176,7 +179,7 @@ function genFocusProps(isApplyDone, isPlanDone) {
 }
 
 
-function genApplyButton(actionId, handleTerraformCallComplete, terraformParams, isApplyDone, isPlanDone, lastActionId, applyAPI, previousPlanTerraformParams) {
+function genApplyButton(actionId, handleTerraformCallComplete, terraformParams, isApplyDone, isPlanDone, lastActionId, applyAPI, previousPlanTerraformParams, destroyCount) {
     let applyButton = null;
     if (actionId !== "") {
         const handleTerraformCallCompleteApply = (data) => { handleTerraformCallComplete(data, applyActionLabel, terraformParams); };
@@ -204,7 +207,7 @@ function genApplyButton(actionId, handleTerraformCallComplete, terraformParams, 
                 <TerraformButton key={actionId} terraformAPI={applyAPI} terraformParams={previousPlanTerraformParams}
                     handleChange={handleTerraformCallCompleteApply} getActionId={getActionIdApply}
                     label={"Terraform Apply '" + actionId + "' ( " + applyParenthesisLabel + " )"} confirm={true}
-                    disabled={applyDisabled} />
+                    disabled={applyDisabled} destroyCount={destroyCount} />
             </Box>
         );
     }
@@ -246,6 +249,7 @@ function genActionDetails(actionId, actionCompleted, terraformParams) {
     let isPlanDone = false
     let isApplyDone = false
     let previousPlanTerraformParams = terraformParams
+    let destroyCount = 0
 
     let actionDetails = { [applyActionLabel]: [], [planActionLabel]: [] };
 
@@ -314,6 +318,10 @@ function genActionDetails(actionId, actionCompleted, terraformParams) {
             }
             if (log?.stats) {
                 actionDetails[actionLabel].push(<StatsBar stats={log.stats} />);
+
+                if (log.stats[ACTION_DESTROY]) {
+                    destroyCount = log.stats[ACTION_DESTROY]
+                }
             }
             actionDetails[actionLabel].push(
                 <TFLog historyItemLog={log} actionLabel={actionLabel} actionId={actionId} hideStats />
@@ -321,7 +329,7 @@ function genActionDetails(actionId, actionCompleted, terraformParams) {
         }
 
     }
-    return { actionDetails, isApplyDone, isPlanDone, previousPlanTerraformParams };
+    return { actionDetails, isApplyDone, isPlanDone, previousPlanTerraformParams, destroyCount };
 }
 /*
 const genTooManyLabel = (genTooManyLabel) => {

@@ -16,7 +16,7 @@ limitations under the License.
 import * as React from 'react';
 import { useMigrationResultHook } from '../result/ResultHook';
 import MigrateButtonUncontrolled from './MigrateButtonUncontrolled';
-import { DONE, ERROR, LOADING, useProgress } from '../progress/ProgressHook';
+import { ERROR, useProgress } from '../progress/ProgressHook';
 import { TERRAFORM_LOAD_UI_PAYLOAD } from '../backend/backend';
 
 export default function MigrateTenant() {

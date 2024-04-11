@@ -18,7 +18,8 @@ import { useHandlePostTerraform } from '../backend/useHandlePost';
 import MigrateButton from '../migrate/MigrateButton';
 import { NOT_STARTED, useProgress } from '../progress/ProgressHook';
 
-export default function TerraformButton({ terraformParams, handleChange, getActionId, label, confirm, terraformAPI, disabled = false, nbUpdate = 0 }) {
+export default function TerraformButton({ terraformParams, handleChange, getActionId, label, confirm, terraformAPI,
+    disabled = false, nbUpdate = 0, destroyCount = 0 }) {
 
     const { progress, setProgress, progressComponent } = useProgress()
     const handlePost = useHandlePostTerraform(terraformParams, handleChange, terraformAPI, getActionId, setProgress)
@@ -28,6 +29,7 @@ export default function TerraformButton({ terraformParams, handleChange, getActi
     }, [nbUpdate, setProgress])
 
     return (
-        <MigrateButton label={label} handlePost={handlePost} confirm={confirm} disabled={disabled} progressComponent={progressComponent} progress={progress} />
+        <MigrateButton label={label} handlePost={handlePost} confirm={confirm} disabled={disabled}
+            progressComponent={progressComponent} progress={progress} destroyCount={destroyCount} />
     );
 }
