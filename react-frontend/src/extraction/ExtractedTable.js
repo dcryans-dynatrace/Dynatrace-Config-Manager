@@ -22,6 +22,8 @@ import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
 
 export const defaultColumnArray = ['data', '0']
 
+export const ACTION_DESTROY = "D"
+
 const SORT_ORDER_ASC = "ASC"
 const SORT_ORDER_DESC = "DESC"
 
@@ -35,7 +37,7 @@ const SORT_BY_ERROR = "error"
 const SORT_STATUS_TO_CODE = {
     [SORT_BY_DONE]: "I",
     [SORT_BY_ADD]: "A",
-    [SORT_BY_DESTROY]: "D",
+    [SORT_BY_DESTROY]: ACTION_DESTROY,
     [SORT_BY_CHANGE]: "U",
     [SORT_BY_ERROR]: "E",
 }

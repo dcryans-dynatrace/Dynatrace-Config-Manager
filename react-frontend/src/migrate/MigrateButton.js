@@ -22,12 +22,12 @@ import ClearIcon from '@mui/icons-material/Clear';
 import CheckIcon from '@mui/icons-material/Check';
 import BackupIcon from '@mui/icons-material/Backup';
 import { genTenantLabel } from '../credentials/TenantSelector';
-import ConfirmAction from '../action/ConfirmAction';
+import ConfirmAction, { MIN_DESTROY_TO_CONFIRM } from '../action/ConfirmAction';
 import { useConfirmAction } from './ConfirmHook';
 import { DONE, ERROR, LOADING } from '../progress/ProgressHook';
 
 export default function MigrateButton({ label, handlePost, confirm = false, disabled = false,
-    progressComponent = null, runOnce = false, progress = "",
+    progressComponent = null, runOnce = false, progress = "", destroyCount = 0,
     descLabel = "Will send API Requests, updating your tenant's configuration.", }) {
 
     const { tenantKey: tenantKeyMain } = useTenantKey(TENANT_KEY_TYPE_TARGET)
@@ -85,7 +85,7 @@ export default function MigrateButton({ label, handlePost, confirm = false, disa
 
     const confirmDialog = React.useMemo(() => {
 
-        if (confirm === true) {
+        if (confirm === true || destroyCount >= MIN_DESTROY_TO_CONFIRM) {
 
             let descLabelShown = descLabel
             if (descLabelShown === undefined) {
@@ -94,14 +94,14 @@ export default function MigrateButton({ label, handlePost, confirm = false, disa
 
             return (
                 <ConfirmAction open={open} handleClose={handleClose} label={label}
-                    descLabel={descLabelShown} tenantLabel={tenantLabel} handlePost={handlePost} />
+                    descLabel={descLabelShown} tenantLabel={tenantLabel} handlePost={handlePost} destroyCount={destroyCount} />
             )
         }
 
         return null
 
 
-    }, [confirm, handleClose, handlePost, label, open, tenantLabel, descLabel])
+    }, [confirm, handleClose, handlePost, label, open, tenantLabel, descLabel, destroyCount])
 
     return (
         <Box sx={{ my: 1 }}>
