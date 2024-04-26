@@ -18,6 +18,8 @@ import shutil
 import dirs
 import os_helper
 import process_utils
+import re
+import subprocess
 import terraform_cli
 import terraform_cli_cmd
 import windows_cmd_file_util
@@ -132,6 +134,16 @@ def write_plan_cmd(terraform_path, set_env_filename):
 TERRAFORM_EXEC = "terraform"
 
 
+def get_terraform_exec():
+    tf_exec_details = get_terraform_executable_details()
+    if tf_exec_details["is_terraform_executable_locally"] == True:
+        return tf_exec_details["absolute_terraform_exec_path_local"]
+    elif tf_exec_details["is_terraform_executable"]:
+        return TERRAFORM_EXEC
+
+    return ""
+
+
 def generate_cmd_list(
     command, extra_args, isRefresh=False, save_state=True, run_info=None
 ):
@@ -143,10 +155,7 @@ def generate_cmd_list(
     ):
         parallelism = run_info["terraform_parallelism"]
 
-    terraform_exec = TERRAFORM_EXEC
-    tf_exec_details = get_terraform_executable_details()
-    if tf_exec_details["is_terraform_executable_locally"] == True:
-        terraform_exec = tf_exec_details["absolute_terraform_exec_path_local"]
+    terraform_exec = get_terraform_exec()
 
     cmd_list = [
         terraform_exec,
@@ -227,8 +236,9 @@ def run_terraform_validation_checks():
     provider_checks = {}
     provider_checks = get_terraform_provider_details()
     terraform_checks = get_terraform_executable_details()
+    version_checks = validate_terraform_executable_version()
 
-    return {**terraform_checks, **provider_checks}
+    return {**terraform_checks, **provider_checks, **version_checks}
 
 
 def get_terraform_provider_details():
@@ -278,6 +288,57 @@ def get_terraform_executable_details():
         "local_terraform_path": terraform_dir,
         "absolute_terraform_exec_path_local": absolute_terraform_exec_path_local,
     }
+
+
+def validate_terraform_executable_version():
+    version_checks = {}
+
+    terraform_exec = get_terraform_exec()
+    if terraform_exec == "":
+        return version_checks
+
+    current_version = get_terraform_version(terraform_exec)
+    required_version = "1.8.2"
+
+    if current_version:
+        version_checks["terraform_version"] = current_version
+        version_checks["terraform_performance_version"] = required_version
+
+        update_required = False
+        if compare_versions(current_version, required_version) < 0:
+            update_required = True
+            
+        version_checks["is_terraform_exec_update_required"] = update_required
+
+    return version_checks
+
+
+def get_terraform_version(terraform_exec):
+    try:
+        output = subprocess.check_output(
+            [terraform_exec, "-version"], stderr=subprocess.STDOUT, text=True
+        )
+        version_match = re.search(r"Terraform v(\d+\.\d+\.\d+)", output)
+        if version_match:
+            return version_match.group(1)
+        else:
+            return None
+
+    except subprocess.CalledProcessError as e:
+        return None
+
+
+def compare_versions(current_version, required_version):
+    current_parts = [int(part) for part in current_version.split(".")]
+    required_parts = [int(part) for part in required_version.split(".")]
+
+    for i in range(3):
+        if current_parts[i] < required_parts[i]:
+            return -1
+        elif current_parts[i] > required_parts[i]:
+            return 1
+
+    return 0
 
 
 def get_absolute_terraform_exec_path_local():

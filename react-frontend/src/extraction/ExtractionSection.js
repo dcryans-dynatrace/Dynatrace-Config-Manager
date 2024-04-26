@@ -40,7 +40,7 @@ export default function ExtractionSection() {
     const [subProgressEntitiesTarget, setSubProgressEntitiesTarget] = React.useState("")
 
     const gridConfigList = useMigrationGridConfig()
-    const { isTerraformError, terraformErrorComponent, terraformInfo } = useTerraformExecDetails()
+    const { isTerraformError, terraformErrorComponent, terraformInfo, terraformUpgradeRequired } = useTerraformExecDetails()
     const { isOneTopologyError, oneTopologyErrorComponent } = useOneTopologyExecDetails()
 
     const entityFilter = usePostProcessEntityFilter()
@@ -117,6 +117,11 @@ export default function ExtractionSection() {
 
     return (
         <React.Fragment>
+            {terraformUpgradeRequired && terraformUpgradeRequired.length && terraformUpgradeRequired.length > 0 ? (
+                <Paper sx={{ mt: 5, p: 1 }} elevation={3} >
+                    {terraformUpgradeRequired}
+                </Paper>
+            ) : null}
             <Paper sx={{ mt: 5, p: 1 }} elevation={3} >
                 <Typography align='center' variant='h4' color={cacheTitleColor}>Cache Management</Typography>
                 {

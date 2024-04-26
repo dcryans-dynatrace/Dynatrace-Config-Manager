@@ -37,6 +37,7 @@ export function useTerraformExecDetails() {
 
     return React.useMemo(() => {
 
+        let terraformUpgradeRequired = []
         let terraformInfo = ""
         let isTerraformError = false
         let terraformErrorComponent = []
@@ -52,7 +53,8 @@ export function useTerraformExecDetails() {
             is_terraform_installed, is_terraform_executable,
             absolute_terraform_exec_path_local, local_terraform_path,
             is_darwin, is_terraform_provider_executable, is_terraform_provider_runnable,
-            absolute_terraform_provider_exec_path_local
+            absolute_terraform_provider_exec_path_local,
+            is_terraform_exec_update_required, terraform_performance_version, terraform_version
         } = terraformExecDetails
 
         if (is_terraform_installed_locally && is_terraform_executable_locally) {
@@ -155,7 +157,35 @@ export function useTerraformExecDetails() {
             )
         }
 
-        return { isTerraformError, terraformErrorComponent, terraformInfo }
+        if (is_terraform_exec_update_required === true) {
+            terraformUpgradeRequired.push(
+                <React.Fragment>
+                    <Typography sx={{ mt: 6 }} variant="h5" color="error.main" align='center'>
+                        A <b>12x faster</b> terraform executable exists since {terraform_performance_version}
+                        <br/> You are using {terraform_version}
+                        <br/> (12x faster based on a 20'000 resources terraform plan)
+                    </Typography>
+                    <Box align='center'>
+                        <Button href={"https://developer.hashicorp.com/terraform/downloads"} target="_blank" rel=" noopener noreferrer">
+                            Download latest version of terraform from Hashicorp
+                        </Button>
+                    </Box >
+                    {is_terraform_executable_locally ? (
+                        <Typography sx={{ my: 6 }} variant="h5" color="error.main" align='center'>
+                            Your executable is installed here:
+                            <br /> {local_terraform_path}
+                        </Typography>
+                    ) : (
+                        <Typography sx={{ my: 6 }} variant="h5" color="error.main" align='center'>
+                            It can be installed locally here:
+                            <br /> {local_terraform_path}
+                        </Typography>
+                    )}
+                </React.Fragment>
+            )
+        }
+
+        return { isTerraformError, terraformErrorComponent, terraformInfo, terraformUpgradeRequired }
     }, [terraformExecDetails])
 
 }
