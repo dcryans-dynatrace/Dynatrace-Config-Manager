@@ -19,17 +19,23 @@ import MigrateContextLoad from '../context/components/MigrateContextLoad';
 import { WizRun } from './WizRun';
 import { useTerraformExecDetails } from '../extraction/useTerraformExecDetails';
 import { useOneTopologyExecDetails } from '../extraction/useOneTopologyExecDetails';
+import { Paper } from '@mui/material';
 
 export function WizRunPage({ showNextTab }) {
 
 
-  const { isTerraformError, terraformErrorComponent } = useTerraformExecDetails()
+  const { isTerraformError, terraformErrorComponent, _, terraformUpgradeRequired } = useTerraformExecDetails()
   const { isOneTopologyError, oneTopologyErrorComponent } = useOneTopologyExecDetails()
 
   return (
     <React.Fragment>
       <MigrateContext>
         <MigrateContextLoad>
+          {terraformUpgradeRequired && terraformUpgradeRequired.length && terraformUpgradeRequired.length > 0 ? (
+            <Paper sx={{ mt: 5, p: 1 }} elevation={3} >
+              {terraformUpgradeRequired}
+            </Paper>
+          ) : null}
           {isTerraformError ? terraformErrorComponent
             : null}
           {isOneTopologyError ? oneTopologyErrorComponent
