@@ -25,6 +25,7 @@ import process_utils
 import terraform_cli
 import terraform_local
 import terraform_state
+import terraform_ui_util
 import ui_api_entity_config
 
 from exception import SettingsValidationError
@@ -37,6 +38,7 @@ ACTION_DONE = "Identical"
 ACTION_PREEMPTIVE = "Preemptive"
 # ACTION_REFRESH = "Refresh"
 ACTION_ERROR = "Error"
+ACTION_WARNING = "Warning"
 
 ACTION_MAP = {
     ACTION_DELETE: "D",
@@ -47,6 +49,7 @@ ACTION_MAP = {
     ACTION_PREEMPTIVE: "P",
     # ACTION_REFRESH: "R",
     ACTION_ERROR: "E",
+    ACTION_WARNING: "W",
 }
 
 
@@ -121,6 +124,9 @@ def get_config_dict(run_info, tenant_key_main, tenant_key_target, entity_legacy_
     run_legacy_match = entity_legacy_match
     ui_payload = None
 
+    config_main = credentials.get_api_call_credentials(tenant_key_main)
+    config_target = credentials.get_api_call_credentials(tenant_key_target)
+
     if run_legacy_match:
         pass
     else:
@@ -162,18 +168,27 @@ def get_config_dict(run_info, tenant_key_main, tenant_key_target, entity_legacy_
         if "return_status" in run_info and run_info["return_status"] >= 300:
             return all_tenant_config_dict, run_legacy_match, ui_payload
 
-        print("\nTerraComposer - step 3/9 - Create Target env. state")
-        terraform_cli.create_target_current_state(
-            run_info, tenant_key_main, tenant_key_target
+        return_error, must_rerun = try_export_plan_source(
+            run_info, tenant_key_main, tenant_key_target, first_run=True
         )
-        if "return_status" in run_info and run_info["return_status"] >= 300:
-            return all_tenant_config_dict, run_legacy_match, ui_payload
 
-        print("\nTerraComposer - step 4/9 - Plan Refresh Target env. state")
-        terraform_cli.terraform_refresh_plan(
-            run_info, tenant_key_main, tenant_key_target
-        )
-        if "return_status" in run_info and run_info["return_status"] >= 300:
+        if return_error:
+            return all_tenant_config_dict, run_legacy_match, ui_payload
+        elif must_rerun:
+            print(
+                "\nTerraComposer - Self Healing - restart at step 3/9 - Will ignore resources with Errors"
+            )
+
+            re_run_path = terraform_cli.get_path_terraform_state_gen(
+                config_main, config_target
+            )
+            terraform_cli.delete_old_dir(re_run_path)
+
+            return_error, must_rerun = try_export_plan_source(
+                run_info, tenant_key_main, tenant_key_target, first_run=False
+            )
+
+        if return_error:
             return all_tenant_config_dict, run_legacy_match, ui_payload
 
         print("\nTerraComposer - step 5/9 - Apply Refresh Target env. state")
@@ -183,27 +198,27 @@ def get_config_dict(run_info, tenant_key_main, tenant_key_target, entity_legacy_
         if "return_status" in run_info and run_info["return_status"] >= 300:
             return all_tenant_config_dict, run_legacy_match, ui_payload
 
-        print("\nTerraComposer - step 6/9 - Create Source env. tf files")
-        terraform_cli.create_work_hcl(run_info, tenant_key_main, tenant_key_target)
-        if "return_status" in run_info and run_info["return_status"] >= 300:
+        return_error, must_rerun, ui_payload = try_export_plan_target(
+            run_info, tenant_key_main, tenant_key_target, first_run=True
+        )
+
+        if return_error:
+            return all_tenant_config_dict, run_legacy_match, ui_payload
+        elif must_rerun:
+            print(
+                "\nTerraComposer - Self Healing - restart at step 6/9 - Will ignore resources with Errors"
+            )
+            re_run_path = terraform_cli.get_path_terraform_config(
+                config_main, config_target
+            )
+            terraform_cli.delete_old_dir(re_run_path)
+            return_error, must_rerun, ui_payload = try_export_plan_target(
+                run_info, tenant_key_main, tenant_key_target, first_run=False
+            )
+
+        if return_error:
             return all_tenant_config_dict, run_legacy_match, ui_payload
 
-        print("\nTerraComposer - step 7/9 - Keep IDs Terraform Source")
-        terraform_state.keep_state_for_IDs(
-            tenant_key_main, tenant_key_target, tenant_key_main
-        )
-
-        print("\nTerraComposer - step 8/9 - Merge Target State with Source TF files")
-        terraform_state.merge_state_into_config(tenant_key_main, tenant_key_target)
-        
-        print("\nTerraComposer - step 9/9 - Terraform Plan All")
-        ui_payload, log_dict = terraform_cli.plan_all(
-            run_info,
-            tenant_key_main,
-            tenant_key_target,
-            env_var_type=terraform_cli.ENV_VAR_USE_CACHE,
-        )
-        
         print("\nTerraComposer - Complete\n")
 
         if ui_payload is None:
@@ -212,6 +227,241 @@ def get_config_dict(run_info, tenant_key_main, tenant_key_target, entity_legacy_
             )
 
     return all_tenant_config_dict, run_legacy_match, ui_payload
+
+
+def try_export_plan_source(
+    run_info, tenant_key_main, tenant_key_target, first_run=False
+):
+    return_error = False
+    must_rerun = False
+
+    if first_run:
+        terraform_local.delete_ignore_resources(tenant_key_target)
+
+    print("\nTerraComposer - step 3/9 - Create Target env. state")
+    terraform_cli.create_target_current_state(
+        run_info, tenant_key_main, tenant_key_target
+    )
+    if "return_status" in run_info and run_info["return_status"] >= 300:
+        return_error = True
+        return return_error, must_rerun
+
+    print("\nTerraComposer - step 4/9 - Plan Refresh Target env. state")
+    log_dict = terraform_cli.terraform_refresh_plan(
+        run_info, tenant_key_main, tenant_key_target
+    )
+
+    if "return_status" in run_info and run_info["return_status"] >= 207:
+        return_error, must_rerun = handle_rerun_ignore(
+            run_info,
+            tenant_key_target,
+            log_dict,
+            tenant_key_main,
+            tenant_key_target,
+            first_run,
+        )
+
+        if return_error:
+            run_info["return_status"] = 400
+
+        return return_error, must_rerun
+
+    return return_error, must_rerun
+
+
+def try_export_plan_target(
+    run_info, tenant_key_main, tenant_key_target, first_run=False
+):
+    ui_payload = None
+    return_error = False
+    must_rerun = False
+
+    if first_run:
+        terraform_local.delete_ignore_resources(tenant_key_main)
+
+    print("\nTerraComposer - step 6/9 - Create Source env. tf files")
+    terraform_cli.create_work_hcl(run_info, tenant_key_main, tenant_key_target)
+    if "return_status" in run_info and run_info["return_status"] >= 300:
+        return_error = True
+        return return_error, must_rerun, ui_payload
+
+    print("\nTerraComposer - step 7/9 - Keep IDs Terraform Source")
+    terraform_state.keep_state_for_IDs(
+        tenant_key_main, tenant_key_target, tenant_key_main
+    )
+
+    print("\nTerraComposer - step 8/9 - Merge Target State with Source TF files")
+    terraform_state.merge_state_into_config(tenant_key_main, tenant_key_target)
+
+    print("\nTerraComposer - step 9/9 - Terraform Plan All")
+    ui_payload, log_dict = terraform_cli.plan_all(
+        run_info,
+        tenant_key_main,
+        tenant_key_target,
+        env_var_type=terraform_cli.ENV_VAR_USE_CACHE,
+    )
+
+    if "return_status" in run_info and run_info["return_status"] >= 207:
+        _, must_rerun = handle_rerun_ignore(
+            run_info,
+            tenant_key_main,
+            log_dict,
+            tenant_key_main,
+            tenant_key_target,
+            first_run,
+        )
+
+        return False, must_rerun, ui_payload
+
+    return return_error, must_rerun, ui_payload
+
+
+def handle_rerun_ignore(
+    run_info, tenant_key, log_dict, tenant_key_main, tenant_key_target, first_run
+):
+    if first_run:
+        pass
+    else:
+        return_error = True
+        must_rerun = False
+        return return_error, must_rerun
+
+    ui_payload = terraform_local.build_ui_payload(log_dict)
+
+    return_error, must_rerun = is_error_or_rerun(ui_payload)
+
+    if must_rerun:
+        run_info["return_status"] = 200
+        process_error_items(
+            tenant_key,
+            log_dict,
+            tenant_key_main,
+            tenant_key_target,
+        )
+
+    return return_error, must_rerun
+
+
+def is_error_or_rerun(ui_payload):
+    return_error = False
+    must_rerun = False
+
+    error_count = 0
+    if "stats" in ui_payload and "E" in ui_payload["stats"]:
+        error_count = ui_payload["stats"]["E"]
+
+    if error_count > 0 and "modules" in ui_payload:
+        must_rerun = True
+    else:
+        return_error = True
+
+    return return_error, must_rerun
+
+
+def process_error_items(tenant_key, log_dict, tenant_key_main, tenant_key_target):
+    error_items = get_errors_from_ui_payload(log_dict)
+
+    ignore_resources = get_ignore_resources_from_tfstate(
+        error_items, tenant_key, tenant_key_main, tenant_key_target
+    )
+
+    print("\nTerraform Plan ended with blocking errors: ")
+    for module_name, resource_dict in ignore_resources.items():
+
+        print("- ", module_name)
+
+        for resource_name, _ in resource_dict.items():
+            print("  - ", resource_name)
+
+    terraform_local.write_ignore_resources(tenant_key, ignore_resources)
+
+
+def get_ignore_resources_from_tfstate(
+    error_items, tenant_key, tenant_key_main, tenant_key_target
+):
+    ignore_resources = {}
+    state = read_state(tenant_key, tenant_key_main, tenant_key_target)
+
+    if "resources" in state:
+        pass
+    else:
+        return error_items
+
+    for resource in state["resources"]:
+        if "type" in resource and "name" in resource:
+            pass
+        else:
+            continue
+
+        type_trimmed = terraform_ui_util.trim_module_name(resource["type"])
+        name = resource["name"]
+
+        if type_trimmed in error_items and name in error_items[type_trimmed]:
+            pass
+        else:
+            continue
+
+        if "instances" in resource and len(resource["instances"]) > 0:
+            pass
+        else:
+            continue
+
+        if (
+            "attributes" in resource["instances"][0]
+            and "id" in resource["instances"][0]["attributes"]
+        ):
+            if type_trimmed in ignore_resources:
+                pass
+            else:
+                ignore_resources[type_trimmed] = {}
+
+            ignore_resources[type_trimmed][
+                resource["instances"][0]["attributes"]["id"]
+            ] = error_items[type_trimmed][name]
+
+    return ignore_resources
+
+
+def read_state(tenant_key, tenant_key_main, tenant_key_target):
+    config_main = credentials.get_api_call_credentials(tenant_key_main)
+    config_target = credentials.get_api_call_credentials(tenant_key_target)
+
+    get_path_func = terraform_cli.get_path_terraform_state_gen
+    backup = False
+    if tenant_key == tenant_key_main:
+        get_path_func = terraform_cli.get_path_terraform_config
+        backup = True
+
+    state = terraform_state.load_state(
+        config_main, config_target, get_path_func, backup
+    )
+
+    return state
+
+
+def get_errors_from_ui_payload(log_dict):
+    error_items = {}
+
+    for module_name, module_dict in log_dict["modules"].items():
+
+        for resource_name, resource in module_dict.items():
+            if "action" in resource and resource["action"] == ACTION_ERROR:
+                pass
+            else:
+                continue
+
+            if module_name in error_items:
+                pass
+            else:
+                error_items[module_name] = {}
+
+            module_lines = []
+            if "module_lines" in resource:
+                module_lines = resource["module_lines"]
+
+            error_items[module_name][resource_name] = module_lines
+
+    return error_items
 
 
 def copy_configs_safe_same_entity_id(
@@ -381,9 +631,9 @@ def process_missing_entity_ids(
     if entity_match_unmatched_dict == {}:
         pass
     else:
-        result_table[
-            "entity_match_unmatched_dict"
-        ] = process_match_entities.convert_matched_to_tree(entity_match_unmatched_dict)
+        result_table["entity_match_unmatched_dict"] = (
+            process_match_entities.convert_matched_to_tree(entity_match_unmatched_dict)
+        )
 
     return result_table, preemptive_ids
 
@@ -417,9 +667,9 @@ def validate_entity_missing(
                 else:
                     entity_match_unmatched_dict[missing_entity_type] = {}
 
-                entity_match_unmatched_dict[missing_entity_type][
-                    missing_entity_id
-                ] = matched_entities_dict[missing_entity_type][missing_entity_id]
+                entity_match_unmatched_dict[missing_entity_type][missing_entity_id] = (
+                    matched_entities_dict[missing_entity_type][missing_entity_id]
+                )
 
                 if doProcessPreemptive:
                     preemptive_ids = add_preemptive_id(

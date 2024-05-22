@@ -23,6 +23,7 @@ import terraform_local
 import terraform_ui_util
 
 STATE_FILENAME = "terraform.tfstate"
+STATE_FILENAME_BACKUP = STATE_FILENAME + ".backup"
 STATE_ID_CACHE = "cache_prev_state"
 
 
@@ -35,6 +36,13 @@ def get_path_state_id_cache(config_main, config_target):
 def merge_state_into_config(tenant_key_main, tenant_key_target):
     config_main = credentials.get_api_call_credentials(tenant_key_main)
     config_target = credentials.get_api_call_credentials(tenant_key_target)
+
+    # Keep current as backup for self healing       
+    copy_state(
+        terraform_cli.get_path_terraform_config(config_main, config_target),
+        terraform_cli.get_path_terraform_config(config_main, config_target),
+        STATE_FILENAME_BACKUP,
+    )
 
     copy_state(
         terraform_cli.get_path_terraform_state_gen(config_main, config_target),
@@ -152,7 +160,7 @@ def remove_items_from_state(
     state = load_state(config_main, config_target, path_func_src)
     new_resources = []
 
-    if ("resources") in state:
+    if "resources" in state:
         pass
     else:
         return False
@@ -176,17 +184,17 @@ def remove_items_from_state(
 
 def write_state(path_func_dest, config_main, config_target, state):
     dest_path = dirs.forward_slash_join(
-        path_func_dest(config_main, config_target), "terraform.tfstate"
+        path_func_dest(config_main, config_target), STATE_FILENAME
     )
 
     with open(dest_path, "w", encoding="UTF-8") as f:
-        f.write(json.dumps(state))
+        f.write(json.dumps(state, indent=2))
 
 
 def load_state(config_main, config_target, path_func, backup=False):
-    state_file_name = "terraform.tfstate"
+    state_file_name = STATE_FILENAME
     if backup is True:
-        state_file_name += ".backup"
+        state_file_name = STATE_FILENAME_BACKUP
 
     path = dirs.forward_slash_join(
         path_func(config_main, config_target), state_file_name

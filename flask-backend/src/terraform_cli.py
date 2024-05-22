@@ -522,7 +522,7 @@ def terraform_refresh_plan(run_info, tenant_key_main, tenant_key_target):
     cmd_list = terraform_cli_cmd.gen_plan_cmd_list(
         plan_filename, is_refresh=True, run_info=run_info
     )
-    terraform_execute(
+    return terraform_execute(
         run_info,
         tenant_key_main,
         tenant_key_target,
@@ -532,6 +532,7 @@ def terraform_refresh_plan(run_info, tenant_key_main, tenant_key_target):
         "Refresh Plan [refresh state only]",
         STATE_GEN_DIR,
         CACHE_DIR_IMPORT,
+        return_log_content=True
     )
 
 
@@ -703,8 +704,6 @@ def plan_all(run_info, tenant_key_main, tenant_key_target, env_var_type=ENV_VAR_
     ui_payload = terraform_local.write_UI_payloads_plan_all(
         tenant_key_main, tenant_key_target, log_dict
     )
-
-    del log_dict["modules"]
 
     return ui_payload, log_dict
 

@@ -29,6 +29,80 @@ OVERALL_DIFF_DIR_TEMP = "ovral_hist_tmp"
 UI_PAYLOAD_FILENAME = "uiPayload"
 MULTI_TARGET_DIR = "multi_target"
 MODULES_DIR = "modules"
+IGNORE_FILE_PREFIX = "ignore_resources"
+
+
+def get_path_ignore_resources(config_tenant):
+    return dirs.get_tenant_data_cache_sub_dir(config_tenant, "ignore_resources")
+
+
+def get_path_ignore_resources_file(config_tenant):
+    ignore_resources_dir = get_path_ignore_resources(config_tenant)
+    ignore_resources_path = dirs.get_file_path(ignore_resources_dir, IGNORE_FILE_PREFIX)
+
+    return ignore_resources_path
+
+
+def write_ignore_resources(tenant_key, new_ignore):
+    ignore_resources_path = get_ignore_resources_path(tenant_key)
+
+    ignore_resources_dict = new_ignore
+
+    """
+    Would make the processes run faster by keeping previous ignores
+    But would also prevent future releases from fixing these resources
+    
+    prev_ignore = get_prev_ignore_json(ignore_resources_path)
+    ignore_resources_dict = merge_prev_and_current(prev_ignore, new_ignore)
+    """
+
+    with open(ignore_resources_path, "w", encoding="UTF-8") as f:
+        f.write(json.dumps(ignore_resources_dict, indent=2))
+
+
+def delete_ignore_resources(tenant_key):
+    ignore_resources_path = get_ignore_resources_path(tenant_key)
+
+    try:
+        os.remove(ignore_resources_path)
+    except OSError as e:
+        pass
+
+
+def merge_prev_and_current(prev_ignore, new_ignore):
+    merged_data = prev_ignore
+
+    for module_name, error_item_dict in new_ignore.items():
+
+        if module_name in merged_data:
+
+            for id, module_lines in error_item_dict:
+                merged_data[id] = module_lines
+
+        else:
+            merged_data[module_name] = error_item_dict
+
+    return merged_data
+
+
+def get_prev_ignore_json(ignore_resources_path):
+    if (
+        os.path.exists(ignore_resources_path)
+        and os.path.getsize(ignore_resources_path) > 0
+    ):
+        with open(ignore_resources_path, "r", encoding="UTF-8") as f:
+            data = json.load(f)
+    else:
+        data = {}
+    return data
+
+
+def get_ignore_resources_path(tenant_key):
+    config_tenant = credentials.get_api_call_credentials(tenant_key)
+
+    ignore_resources_path = get_path_ignore_resources_file(config_tenant)
+
+    return ignore_resources_path
 
 
 def get_path_overall_diff(config_main, config_target, temp=False):
@@ -66,10 +140,11 @@ def write_UI_payloads_plan_all(tenant_key_main, tenant_key_target, log_dict):
 
     return ui_payload
 
+
 def delete_overall_dir(tenant_key_main, tenant_key_target):
     config_main = credentials.get_api_call_credentials(tenant_key_main)
     config_target = credentials.get_api_call_credentials(tenant_key_target)
-    
+
     path = get_path_overall_diff(config_main, config_target)
     terraform_cli.delete_old_dir(path, label="overall")
 
@@ -204,7 +279,7 @@ def compile_modules_and_stats(log_dict):
 def write_ui_payload(path, ui_payload):
     ui_payload_path = dirs.get_file_path(path, UI_PAYLOAD_FILENAME)
     with open(ui_payload_path, "w", encoding="UTF-8") as f:
-        f.write(json.dumps(ui_payload))
+        f.write(json.dumps(ui_payload, indent=2))
 
 
 def build_ui_payload(log_dict):

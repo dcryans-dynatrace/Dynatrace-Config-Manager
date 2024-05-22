@@ -84,7 +84,7 @@ def save_history_configs(tenant_key_main, tenant_key_target, payload):
     with open(
         get_history_file(tenant_key_main, tenant_key_target), "w", encoding="UTF-8"
     ) as file:
-        file.write(json.dumps(payload))
+        file.write(json.dumps(payload, indent=2))
 
 
 def count_files_in_subdirectories(path):
