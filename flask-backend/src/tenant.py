@@ -60,4 +60,4 @@ def save_tenant_list(payload):
     with open(
         dirs.get_tenant_list_dir() + "/list.json", "w", encoding="UTF-8"
     ) as file_tenant_list:
-        file_tenant_list.write(json.dumps(payload))
+        file_tenant_list.write(json.dumps(payload, indent=2))

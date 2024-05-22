@@ -102,6 +102,8 @@ def terraform_plan_all():
             run_info, tenant_key_main, tenant_key_target
         )
 
+        del log_dict["modules"]
+
         result = {}
         result["ui_payload"] = ui_payload
         result["log_dict"] = log_dict

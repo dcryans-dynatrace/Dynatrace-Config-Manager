@@ -33,6 +33,7 @@ const SORT_BY_ADD = "add"
 const SORT_BY_DESTROY = "destroy"
 const SORT_BY_CHANGE = "change"
 const SORT_BY_ERROR = "error"
+const SORT_BY_OTHER = "other"
 
 const SORT_STATUS_TO_CODE = {
     [SORT_BY_DONE]: "I",
@@ -40,9 +41,10 @@ const SORT_STATUS_TO_CODE = {
     [SORT_BY_DESTROY]: ACTION_DESTROY,
     [SORT_BY_CHANGE]: "U",
     [SORT_BY_ERROR]: "E",
+    [SORT_BY_OTHER]: "W",
 }
 
-const SORT_BY_LIST = [SORT_BY_DONE, SORT_BY_ADD, SORT_BY_DESTROY, SORT_BY_CHANGE, SORT_BY_ERROR]
+const SORT_BY_LIST = [SORT_BY_DONE, SORT_BY_ADD, SORT_BY_DESTROY, SORT_BY_CHANGE, SORT_BY_ERROR, SORT_BY_OTHER]
 
 export default function ExtractedTable({ data, resultKey, keyArray, handleClickMenu, searchText }) {
 
@@ -106,7 +108,7 @@ export default function ExtractedTable({ data, resultKey, keyArray, handleClickM
         }
 
         let sortStatusesButtons = []
-        const sizeStatus = 12 / 5
+        const sizeStatus = 12 / SORT_BY_LIST.length
         for (const sortByButton of SORT_BY_LIST) {
             sortStatusesButtons.push(
                 genSortButton(sortByButton, sizeStatus, handleSortBy, sortBy, sortOrderIcon)

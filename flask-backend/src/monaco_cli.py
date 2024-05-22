@@ -86,7 +86,7 @@ def save_finished(path, finished_file, action_type, label):
     finished_file["label"] = label
 
     with open(get_path_finished_file(path), "w", encoding="UTF-8") as f:
-        f.write(json.dumps(finished_file))
+        f.write(json.dumps(finished_file, indent=2))
 
 
 def load_finished(path):

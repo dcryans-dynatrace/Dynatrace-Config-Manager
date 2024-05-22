@@ -21,6 +21,7 @@ import terraform_local
 tf_module_pattern = re.compile(
     r"[^m]*module\.([^ .]*)(\.data)?\.([^ .]*)\.([^ .:,]*)[\s:,]*"
 )
+tf_module_pattern_error = re.compile(r"modules\\[^\\]+\\([^.]+)\.([^.]+)\.tf line")
 
 REFRESH_STATE_LABEL = ": Refreshing state..."
 CREATING_LABEL = ": Creating..."
@@ -36,6 +37,7 @@ PLAN_MODULE_SECTION_END = "    }"
 ERROR_SECTION_CHAR_START = "╷"
 ERROR_SECTION_CHAR_END = "╵"
 WARNING_SECTION_LABEL = "│ Warning:"
+ERROR_SECTION_CHAR_START = "╷"
 
 
 def create_dict_from_terraform_log(terraform_log, terraform_log_cleaned):
@@ -49,7 +51,7 @@ def create_dict_from_terraform_log(terraform_log, terraform_log_cleaned):
     module_line_cleaned = ""
     processing_module = False
     done_processing = False
-    module_line_tag = ""
+    module_line_tag = []
     is_error = False
 
     done_tag = ""
@@ -68,7 +70,7 @@ def create_dict_from_terraform_log(terraform_log, terraform_log_cleaned):
         elif line_cleaned.startswith(ERROR_SECTION_CHAR_START):
             module_lines = []
             module_line_cleaned = ""
-            module_line_tag = "│   with module."
+            module_line_tag = ["│   with module.", "│   on modules"]
             processing_module = True
             done_tag = ERROR_SECTION_CHAR_END
             is_error = True
@@ -91,9 +93,9 @@ def create_dict_from_terraform_log(terraform_log, terraform_log_cleaned):
             line_unused = False
             module_lines.append(lines[idx])
 
-            if module_line_cleaned == "" and line_cleaned.startswith(module_line_tag):
-                module_line_cleaned = line_cleaned
-                    
+            if module_line_cleaned == "" and len(module_line_tag) > 0:
+                module_line_cleaned = get_module_line(module_line_tag, line_cleaned)
+
             if is_error:
                 if line_cleaned.startswith(WARNING_SECTION_LABEL):
                     is_error = False
@@ -141,6 +143,17 @@ def create_dict_from_terraform_log(terraform_log, terraform_log_cleaned):
     log_dict = compile_stats(log_dict)
 
     return log_dict
+
+
+def get_module_line(module_line_tag, line_cleaned):
+    module_line_cleaned = ""
+
+    for tag in module_line_tag:
+        if line_cleaned.startswith(tag):
+            module_line_cleaned = line_cleaned
+            continue
+
+    return module_line_cleaned
 
 
 def compile_stats(log_dict):
@@ -194,14 +207,22 @@ def extract_tf_module(module_lines, modules_dict, first_line_cleaned, is_error):
 
     match = tf_module_pattern.search(first_line_cleaned)
 
-    if match:
-        pass
-    else:
-        return False
+    module_dir = ""
+    module_name = ""
+    resource = ""
 
-    module_dir = match.group(1)
-    module_name = match.group(3)
-    resource = match.group(4)
+    if match:
+        module_dir = match.group(1)
+        module_name = match.group(3)
+        resource = match.group(4)
+    else:
+        match = tf_module_pattern_error.search(first_line_cleaned)
+
+        if match:
+            resource = match.group(1)
+            module_name = match.group(2)
+        else:
+            return False
 
     module_name_trimmed = trim_module_name(module_name)
 
@@ -213,16 +234,25 @@ def extract_tf_module(module_lines, modules_dict, first_line_cleaned, is_error):
     immobile_status = [
         None,
         process_migrate_config.ACTION_IDENTICAL,
+        process_migrate_config.ACTION_WARNING,
     ]
     action_code = None
 
+    prev_action_none = False
+
     if resource in modules_dict[module_name_trimmed]:
-        if modules_dict[module_name_trimmed][resource]["action"] in immobile_status:
-            pass
-        else:
-            print(
-                f"INFO: {module_name}, {module_name_trimmed}, {resource} has both actions: {action} (new) and {modules_dict[module_name_trimmed][resource]['action_code']}"
-            )
+        if action is None and modules_dict[module_name_trimmed][resource]["action"] is not None:
+            action = modules_dict[module_name_trimmed][resource]["action"]
+        else:            
+            if modules_dict[module_name_trimmed][resource]["action"] is None:
+                prev_action_none = True
+
+            if modules_dict[module_name_trimmed][resource]["action"] in immobile_status:
+                pass
+            else:
+                print(
+                    f"INFO: {module_name}, {module_name_trimmed}, {resource} has both actions: {action} (new) and {modules_dict[module_name_trimmed][resource]['action_code']}"
+                )
 
         action_code = modules_dict[module_name_trimmed][resource]["action_code"]
         module_lines = (
@@ -230,6 +260,9 @@ def extract_tf_module(module_lines, modules_dict, first_line_cleaned, is_error):
             + [""]
             + module_lines
         )
+
+    if action is None and prev_action_none:
+        action = process_migrate_config.ACTION_WARNING
 
     if action is not None:
         action_code = process_migrate_config.ACTION_MAP[action]

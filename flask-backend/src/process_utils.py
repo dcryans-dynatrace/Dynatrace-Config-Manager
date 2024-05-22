@@ -18,6 +18,9 @@ import handler_api
 from filter import AnalysisFilter
 import process_analyze_schemas
 
+SOURCE = "source"
+TARGET = "target"
+
 UNIQUE_ENTITY_LIST = ["environment"]
 ALL_BASIC_ENTITY_LIST = [
     "HOST",

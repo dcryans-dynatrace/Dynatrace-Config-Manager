@@ -31,7 +31,7 @@ def load_execution_options():
 def save_execution_options(payload):
 
     with open(dirs.get_options_dir() + '/execution_options.json', 'w', encoding='UTF-8') as file_execution_options:
-        file_execution_options.write(json.dumps(payload))
+        file_execution_options.write(json.dumps(payload, indent=2))
 
 
 def load_global_settings():
@@ -49,7 +49,7 @@ def load_global_settings():
 def save_global_settings(payload):
 
     with open(dirs.get_options_dir() + '/global_settings.json', 'w', encoding='UTF-8') as file_global_settings:
-        file_global_settings.write(json.dumps(payload))
+        file_global_settings.write(json.dumps(payload, indent=2))
 
 
 def load_entity_filter():
@@ -67,4 +67,4 @@ def load_entity_filter():
 def save_entity_filter(payload):
 
     with open(dirs.get_options_dir() + '/entity_filter.json', 'w', encoding='UTF-8') as file_entity_filter:
-        file_entity_filter.write(json.dumps(payload))
+        file_entity_filter.write(json.dumps(payload, indent=2))

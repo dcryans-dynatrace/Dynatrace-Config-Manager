@@ -16,6 +16,7 @@ import dirs
 import monaco_cli_match
 import os_helper
 import terraform_cli
+import terraform_local
 import terraform_state
 import windows_cmd_file_util
 
@@ -40,6 +41,7 @@ def get_env_vars_base(
     history_log_prefix="",
 ):
     log_file_path = "terraform-provider-dynatrace.http.log"
+    debug_log_file_path = "debug-log.log"
     log_prefix = "terraform-provider-dynatrace"
     if history_log_prefix == "":
         pass
@@ -51,6 +53,9 @@ def get_env_vars_base(
         pass
     else:
         log_file_path = dirs.forward_slash_join(history_log_path, log_file_path)
+        debug_log_file_path = dirs.forward_slash_join(
+            history_log_path, debug_log_file_path
+        )
 
     env_vars = {
         "DYNATRACE_ENV_URL": tenant_data_current["url"],
@@ -68,7 +73,8 @@ def get_env_vars_base(
         "DT_BACKWARDS_COMPATIBILITY": TERRAFORM_TRUE,
         "DYNATRACE_LOG_DEBUG_PREFIX": log_prefix,
         # "TF_PLUGIN_CACHE_DIR": dirs.get_terraform_cache_dir(),  # NEED TO COMPLETE THIS CHANGE BEFORE ENABLING IT
-        # "TF_LOG": "TRACE" # DO NOT COMMIT!!!
+        # "TF_LOG": "TRACE",  # DO NOT COMMIT!!!
+        # "TF_LOG_PATH": debug_log_file_path,  # DO NOT COMMIT!!!
     }
 
     if os_helper.IS_WINDOWS:
@@ -152,11 +158,14 @@ def get_env_vars_extras_export(
 ):
     tenant_key_linked = ""
     is_source_export = False
+    config_current = None
     if config_main["tenant_key"] == tenant_key_current:
         tenant_key_linked = config_target["tenant_key"]
         is_source_export = True
+        config_current = config_main
     else:
         tenant_key_linked = config_main["tenant_key"]
+        config_current = config_target
 
     enable_dashboards = TERRAFORM_FALSE
     if run_info["enable_dashboards"] != None and run_info["enable_dashboards"] is True:
@@ -183,6 +192,7 @@ def get_env_vars_extras_export(
         "DYNATRACE_PREV_STATE_PATH_LINKED": terraform_state.get_keyed_state_file_path(
             config_main, config_target, tenant_key_linked
         ),
+        "DYNATRACE_EXPORT_IGNORE_RESOURCES": terraform_local.get_path_ignore_resources_file(config_current)
     }
     if terraform_path_output is not None:
         env_vars["DYNATRACE_TARGET_FOLDER"] = terraform_path_output
