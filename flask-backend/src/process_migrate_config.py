@@ -13,10 +13,13 @@
 #  limitations under the License.
 
 import json
+import os
+import shutil
 
 import api_v2
 import compare
 import credentials
+import dirs
 import entity_utils
 import monaco_cli_match
 import process_match_entities
@@ -235,6 +238,10 @@ def try_export_plan_source(
     return_error = False
     must_rerun = False
 
+    config_main = credentials.get_api_call_credentials(tenant_key_main)
+    config_target = credentials.get_api_call_credentials(tenant_key_target)
+    export_path = terraform_cli.get_path_terraform_state_gen(config_main, config_target)
+
     if first_run:
         terraform_local.delete_ignore_resources(tenant_key_target)
 
@@ -259,6 +266,7 @@ def try_export_plan_source(
             tenant_key_main,
             tenant_key_target,
             first_run,
+            export_path,
         )
 
         if return_error:
@@ -275,6 +283,10 @@ def try_export_plan_target(
     ui_payload = None
     return_error = False
     must_rerun = False
+
+    config_main = credentials.get_api_call_credentials(tenant_key_main)
+    config_target = credentials.get_api_call_credentials(tenant_key_target)
+    export_path = terraform_cli.get_path_terraform_config(config_main, config_target)
 
     if first_run:
         terraform_local.delete_ignore_resources(tenant_key_main)
@@ -309,6 +321,7 @@ def try_export_plan_target(
             tenant_key_main,
             tenant_key_target,
             first_run,
+            export_path,
         )
 
         return False, must_rerun, ui_payload
@@ -317,7 +330,13 @@ def try_export_plan_target(
 
 
 def handle_rerun_ignore(
-    run_info, tenant_key, log_dict, tenant_key_main, tenant_key_target, first_run
+    run_info,
+    tenant_key,
+    log_dict,
+    tenant_key_main,
+    tenant_key_target,
+    first_run,
+    export_path,
 ):
     if first_run:
         pass
@@ -337,6 +356,7 @@ def handle_rerun_ignore(
             log_dict,
             tenant_key_main,
             tenant_key_target,
+            export_path,
         )
 
     return return_error, must_rerun
@@ -358,8 +378,10 @@ def is_error_or_rerun(ui_payload):
     return return_error, must_rerun
 
 
-def process_error_items(tenant_key, log_dict, tenant_key_main, tenant_key_target):
-    error_items = get_errors_from_ui_payload(log_dict)
+def process_error_items(
+    tenant_key, log_dict, tenant_key_main, tenant_key_target, export_path
+):
+    error_items = get_errors_from_ui_payload(log_dict, export_path)
 
     ignore_resources = get_ignore_resources_from_tfstate(
         error_items, tenant_key, tenant_key_main, tenant_key_target
@@ -439,7 +461,7 @@ def read_state(tenant_key, tenant_key_main, tenant_key_target):
     return state
 
 
-def get_errors_from_ui_payload(log_dict):
+def get_errors_from_ui_payload(log_dict, export_path):
     error_items = {}
 
     for module_name, module_dict in log_dict["modules"].items():
@@ -458,6 +480,19 @@ def get_errors_from_ui_payload(log_dict):
             module_lines = []
             if "module_lines" in resource:
                 module_lines = resource["module_lines"]
+
+            if "tf_file_path" in resource:
+                error_dir_path = dirs.prep_dir(export_path + "_error")
+
+                source_resource = dirs.forward_slash_join(
+                    export_path, resource["tf_file_path"]
+                )
+                dest_resource = dirs.forward_slash_join(
+                    error_dir_path, resource["tf_file_path"]
+                )
+                dest_path_dir = os.path.dirname(dest_resource)
+                os.makedirs(dest_path_dir, exist_ok=True)
+                shutil.copy2(source_resource, dest_resource)
 
             error_items[module_name][resource_name] = module_lines
 

@@ -72,6 +72,7 @@ def get_env_vars_base(
         "DYNATRACE_DISABLE_ORDERING_SUPPORT": TERRAFORM_TRUE,
         "DT_BACKWARDS_COMPATIBILITY": TERRAFORM_TRUE,
         "DYNATRACE_LOG_DEBUG_PREFIX": log_prefix,
+        "DYNATRACE_JSON_DASHBOARD_BASE_PLUS": TERRAFORM_TRUE,
         # "TF_PLUGIN_CACHE_DIR": dirs.get_terraform_cache_dir(),  # NEED TO COMPLETE THIS CHANGE BEFORE ENABLING IT
         # "TF_LOG": "TRACE",  # DO NOT COMMIT!!!
         # "TF_LOG_PATH": debug_log_file_path,  # DO NOT COMMIT!!!
