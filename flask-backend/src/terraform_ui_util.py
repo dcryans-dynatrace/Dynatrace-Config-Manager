@@ -21,7 +21,7 @@ import terraform_local
 tf_module_pattern = re.compile(
     r"[^m]*module\.([^ .]*)(\.data)?\.([^ .]*)\.([^ .:,]*)[\s:,]*"
 )
-tf_module_pattern_error = re.compile(r"modules\\[^\\]+\\([^.]+)\.([^.]+)\.tf line")
+tf_module_pattern_error = re.compile(r"(modules\\[^\\]+\\([^.]+)\.([^.]+)\.tf) line")
 
 REFRESH_STATE_LABEL = ": Refreshing state..."
 CREATING_LABEL = ": Creating..."
@@ -210,6 +210,7 @@ def extract_tf_module(module_lines, modules_dict, first_line_cleaned, is_error):
     module_dir = ""
     module_name = ""
     resource = ""
+    tf_file_path = ""
 
     if match:
         module_dir = match.group(1)
@@ -219,8 +220,9 @@ def extract_tf_module(module_lines, modules_dict, first_line_cleaned, is_error):
         match = tf_module_pattern_error.search(first_line_cleaned)
 
         if match:
-            resource = match.group(1)
-            module_name = match.group(2)
+            tf_file_path = match.group(1)
+            resource = match.group(2)
+            module_name = match.group(3)
         else:
             return False
 
@@ -275,6 +277,9 @@ def extract_tf_module(module_lines, modules_dict, first_line_cleaned, is_error):
         "action_code": action_code,
         "module_lines": module_lines,
     }
+    
+    if tf_file_path != "":
+        modules_dict[module_name_trimmed][resource]["tf_file_path"] = tf_file_path
 
     return True
 

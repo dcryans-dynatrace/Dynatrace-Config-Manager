@@ -396,6 +396,11 @@ def plan_multi_target(run_info, tenant_key_main, tenant_key_target, terraform_pa
         # module = param["module"]
         module_dir = param["module_trimmed"]
         unique_name = param["unique_name"]
+        
+        if os.path.exists(dirs.forward_slash_join(path_config, MODULES_DIR, module_dir)):
+            pass
+        elif module_dir == "json_dashboard_base":
+            module_dir = "json_dashboard"
 
         if module_dir in module_infos:
             pass
@@ -854,7 +859,7 @@ def get_main_tf_definition(file_path, variable_list, module_dir):
                 if module_done:
                     if line.startswith('module "'):
                         current_module_details.append(line)
-                        current_module = extract_module_name(line)
+                        current_module = extract_module_name(line, module_dir)
                         module_done = False
                         continue
                     elif line.startswith("}"):
@@ -965,15 +970,22 @@ def get_resources_tf(
     return resources_tf_dict, resources_done
 
 
-def extract_module_name(line):
+def extract_module_name(line, module_dir):
     regex = r'module \"([^"]+)\" {'
 
     m = re.search(regex, line)
 
+    module_name = ""
+
     if m is None:
-        return ""
+        pass
     else:
-        return m.group(1)
+        module_name = m.group(1)
+    
+    if module_dir == "json_dashboard" and module_name == "json_dashboard_base":
+        return module_dir
+    
+    return module_name
 
 
 def extract_variable_source(line):
