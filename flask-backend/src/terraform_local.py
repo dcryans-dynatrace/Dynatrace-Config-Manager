@@ -396,8 +396,10 @@ def plan_multi_target(run_info, tenant_key_main, tenant_key_target, terraform_pa
         # module = param["module"]
         module_dir = param["module_trimmed"]
         unique_name = param["unique_name"]
-        
-        if os.path.exists(dirs.forward_slash_join(path_config, MODULES_DIR, module_dir)):
+
+        if os.path.exists(
+            dirs.forward_slash_join(path_config, MODULES_DIR, module_dir)
+        ):
             pass
         elif module_dir == "json_dashboard_base":
             module_dir = "json_dashboard"
@@ -512,6 +514,11 @@ def write_variables_tf_files(var_defs, path_modules):
 def write_main_tf_file(main_tf, path):
     main_tf_path = dirs.forward_slash_join(path, "main.tf")
 
+    if "json_dashbord" in main_tf:
+        if "json_dashboard_base" in main_tf:
+            if main_tf["json_dashboard"] == main_tf["json_dashboard_base"]:
+                del main_tf["json_dashboard_base"]
+
     with open(main_tf_path, "w", encoding="UTF-8") as output_file:
         for module_name, module_lines in main_tf.items():
             output_file.writelines(module_lines)
@@ -567,8 +574,14 @@ def multi_target_plan(
     path_modules = dirs.forward_slash_join(path, MODULES_DIR)
     path_config_modules = dirs.forward_slash_join(path_config, MODULES_DIR)
 
+    module_config_path = dirs.forward_slash_join(path_config_modules, module_dir)
+    if os.path.exists(module_config_path):
+        pass
+    elif module_dir == "json_dashboard_base":
+        module_dir = "json_dashboard"
+
     module_path = dirs.prep_dir(path_modules, module_dir)
-    module_config_path = dirs.prep_dir(path_config_modules, module_dir)
+    module_config_path = dirs.forward_slash_join(path_config_modules, module_dir)
     main_tf_path = dirs.forward_slash_join(path_config, "main.tf")
 
     non_resource_file = [
@@ -579,87 +592,91 @@ def multi_target_plan(
     ]
 
     all_resources_found_dict = {}
-    for dirpath, dirnames, filenames in os.walk(module_config_path):
-        for filename in filenames:
-            if filename in non_resource_file:
-                continue
 
-            file_path = dirs.forward_slash_join(dirpath, filename)
-            resource_found, content_list = file_contains_resource(
-                file_path, resource_list
+    if os.path.exists(module_config_path):
+        for dirpath, dirnames, filenames in os.walk(module_config_path):
+            for filename in filenames:
+                if filename in non_resource_file:
+                    continue
+
+                file_path = dirs.forward_slash_join(dirpath, filename)
+                resource_found, content_list = file_contains_resource(
+                    file_path, resource_list
+                )
+                if resource_found:
+                    output_path = dirs.forward_slash_join(module_path, filename)
+                    write_resource(output_path, content_list)
+
+                    for contents in content_list:
+                        variable_list, variable_done = get_all_variables(
+                            contents, variable_list, variable_done
+                        )
+                        (
+                            local_reference_list,
+                            local_reference_done,
+                        ) = get_all_local_references(
+                            contents, local_reference_list, local_reference_done
+                        )
+                        all_resources_found_dict = get_all_resources_from_tf_file(
+                            contents, all_resources_found_dict
+                        )
+
+        resources_done = mark_resources_as_done(
+            resources_done, module_dir, resource_list, all_resources_found_dict
+        )
+
+        variables_path = dirs.forward_slash_join(
+            module_config_path, "___variables___.tf"
+        )
+
+        var_defs[module_dir] = get_variables_definition(variables_path, variable_list)
+        main_tf[module_dir], resources_dict = get_main_tf_definition(
+            main_tf_path, variable_list, module_dir=module_dir
+        )
+
+        for sub_module in resources_dict.keys():
+            resources_tf_path = dirs.forward_slash_join(
+                path_config_modules, sub_module, "___resources___.tf"
             )
-            if resource_found:
-                output_path = dirs.forward_slash_join(module_path, filename)
-                write_resource(output_path, content_list)
+            resources_tf_dict, resources_done = get_resources_tf(
+                resources_tf_path,
+                resources_dict[sub_module].keys(),
+                sub_module,
+                resources_tf_dict,
+                resources_done,
+            )
 
-                for contents in content_list:
-                    variable_list, variable_done = get_all_variables(
-                        contents, variable_list, variable_done
-                    )
-                    (
-                        local_reference_list,
-                        local_reference_done,
-                    ) = get_all_local_references(
-                        contents, local_reference_list, local_reference_done
-                    )
-                    all_resources_found_dict = get_all_resources_from_tf_file(
-                        contents, all_resources_found_dict
-                    )
+        for variable in variable_list:
+            variable_done[variable] = True
 
-    resources_done = mark_resources_as_done(
-        resources_done, module_dir, resource_list, all_resources_found_dict
-    )
-
-    variables_path = dirs.forward_slash_join(module_config_path, "___variables___.tf")
-
-    var_defs[module_dir] = get_variables_definition(variables_path, variable_list)
-    main_tf[module_dir], resources_dict = get_main_tf_definition(
-        main_tf_path, variable_list, module_dir=module_dir
-    )
-
-    for sub_module in resources_dict.keys():
-        resources_tf_path = dirs.forward_slash_join(
-            path_config_modules, sub_module, "___resources___.tf"
-        )
-        resources_tf_dict, resources_done = get_resources_tf(
-            resources_tf_path,
-            resources_dict[sub_module].keys(),
-            sub_module,
-            resources_tf_dict,
-            resources_done,
+        resources_to_extract, resources_done = prepare_resources_to_extract(
+            local_reference_list, resources_tf_dict, resources_done
         )
 
-    for variable in variable_list:
-        variable_done[variable] = True
-
-    resources_to_extract, resources_done = prepare_resources_to_extract(
-        local_reference_list, resources_tf_dict, resources_done
-    )
-
-    for sub_module, resources in resources_to_extract.items():
-        (
-            variable_done,
-            variable_list,
-            local_reference_done,
-            local_reference_list,
-            var_defs,
-            main_tf,
-            resources_tf_dict,
-            resources_done,
-        ) = multi_target_plan(
-            variable_done,
-            variable_list,
-            local_reference_done,
-            local_reference_list,
-            var_defs,
-            main_tf,
-            resources_tf_dict,
-            resources_done,
-            sub_module,
-            resources,
-            path,
-            path_config,
-        )
+        for sub_module, resources in resources_to_extract.items():
+            (
+                variable_done,
+                variable_list,
+                local_reference_done,
+                local_reference_list,
+                var_defs,
+                main_tf,
+                resources_tf_dict,
+                resources_done,
+            ) = multi_target_plan(
+                variable_done,
+                variable_list,
+                local_reference_done,
+                local_reference_list,
+                var_defs,
+                main_tf,
+                resources_tf_dict,
+                resources_done,
+                sub_module,
+                resources,
+                path,
+                path_config,
+            )
 
     return (
         variable_done,
@@ -981,10 +998,10 @@ def extract_module_name(line, module_dir):
         pass
     else:
         module_name = m.group(1)
-    
+
     if module_dir == "json_dashboard" and module_name == "json_dashboard_base":
         return module_dir
-    
+
     return module_name
 
 
